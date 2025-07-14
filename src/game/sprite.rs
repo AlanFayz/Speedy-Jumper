@@ -11,6 +11,8 @@ use crate::timer::*;
 use crate::math::*;
 
 pub struct Sprite {
+    pub boost_counter: i32,
+
     position: Vec2, 
     size: Vec2,
 
@@ -21,7 +23,7 @@ pub struct Sprite {
 
     boost_timer: Timer,
     boost_cooldown: Duration,
-    boost_speed_increase: f32
+    boost_speed_increase: f32,
 }
 
 impl Sprite { 
@@ -42,6 +44,7 @@ impl Sprite {
 
     pub async fn new(name: String, position: Vec2, size: Vec2) -> Self {
         Sprite {
+            boost_counter: 10,
             position,
             size, 
 
@@ -52,8 +55,12 @@ impl Sprite {
 
             boost_timer: Timer::new(),
             boost_cooldown: Duration::from_millis(500),
-            boost_speed_increase: 20.0
+            boost_speed_increase: 20.0,
         }
+    }
+
+    pub fn get_bounds(&self) -> Bounds2D {
+        Bounds2D::new(self.position, self.size)
     }
 
     fn handle_movement(&mut self) {
@@ -68,9 +75,10 @@ impl Sprite {
 
         let mut scalar = 0.0;
 
-        if is_key_down(KeyCode::Space) && self.boost_timer.has_elapsed(self.boost_cooldown) {
+        if is_key_down(KeyCode::Space) && self.boost_timer.has_elapsed(self.boost_cooldown) && self.boost_counter > 0 {
             scalar += self.boost_speed_increase;
             self.boost_timer.reset();
+            self.boost_counter -= 1;
         }   
 
         self.velocity += direction * scalar;
@@ -82,10 +90,10 @@ impl Sprite {
     }
 
     fn draw_eye(&self, mut eye_center: Vec2, eye_size: Vec2, eye_origin: Vec2) {
-        let center_to_eye = Vec2::from(mouse_position()) - eye_center;
-        let distance = center_to_eye.length() / Vec2::from(screen_size());
+        let mouse_to_eye = Vec2::from(mouse_position()) - eye_center;
+        let distance = mouse_to_eye.length() / Vec2::from(screen_size());
 
-        let eye_direction = center_to_eye.normalize_or(Vec2::new(1.0, 0.0)) * distance;
+        let eye_direction = mouse_to_eye.normalize_or(Vec2::new(1.0, 0.0)) * distance;
 
         eye_center = rotate_around(eye_direction, eye_center, eye_origin);
         let eye_position = eye_center - eye_size / 2.0;
@@ -102,7 +110,7 @@ impl Sprite {
         );
     }
 
-    fn draw(&self) {
+    pub fn draw(&self) {
         draw_texture_ex(
             &self.body,
             self.position.x,
@@ -124,14 +132,38 @@ impl Sprite {
         self.draw_eye(eye_center, eye_size, eye_origin);
     }
 
+    fn handle_border(&mut self) {
+        let player_bounds = self.get_bounds();
+
+        let mut force = Vec2::new(0.0, 0.0);
+
+        if player_bounds.get_position().x == 0.0 {
+            force += Vec2::new(1.0, 0.0);
+        } else if player_bounds.get_position().x == screen_width() - self.size.x {
+            force += Vec2::new(-1.0, 0.0);
+        }
+
+        if player_bounds.get_position().y == 0.0 {
+            force += Vec2::new(0.0, 1.0);
+        }
+
+        // probably not the most accurate but want to get the "bouncy" effect off the walls
+        force = force.normalize_or_zero() * self.velocity.length() * 2.0; 
+        self.velocity += force;
+    }
+
     pub fn update(&mut self) {
         self.handle_movement();
         self.handle_gravity();
+        self.handle_border();
 
         self.velocity = self.velocity.clamp_length(0.0, 10.0);
         self.position += self.velocity;
         self.velocity = self.velocity.lerp(Vec2::new(0.0, 0.0), 0.01);
 
-        self.draw();
+        self.position = self.position.clamp(
+            Vec2::new(0.0, 0.0), 
+            Vec2::new(screen_width() - self.size.x, f32::MAX),
+        );
     }
 }
