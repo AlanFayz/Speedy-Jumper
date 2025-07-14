@@ -7,11 +7,8 @@ use macroquad::prelude::*;
 
 use macroquad::texture::Texture2D;
 
-pub mod timer;
-mod math;
-
-use timer::Timer;
-use math::*;
+use crate::timer::*;
+use crate::math::*;
 
 pub struct Sprite {
     position: Vec2, 
@@ -79,6 +76,11 @@ impl Sprite {
         self.velocity += direction * scalar;
     }
 
+    fn handle_gravity(&mut self) {
+        const GRAVITY_CONSTANT: f32 = 0.15;
+        self.velocity += Vec2::new(0.0, GRAVITY_CONSTANT);
+    }
+
     fn draw_eye(&self, mut eye_center: Vec2, eye_size: Vec2, eye_origin: Vec2) {
         let center_to_eye = Vec2::from(mouse_position()) - eye_center;
         let distance = center_to_eye.length() / Vec2::from(screen_size());
@@ -124,6 +126,7 @@ impl Sprite {
 
     pub fn update(&mut self) {
         self.handle_movement();
+        self.handle_gravity();
 
         self.velocity = self.velocity.clamp_length(0.0, 10.0);
         self.position += self.velocity;

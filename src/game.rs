@@ -4,8 +4,11 @@ use macroquad::prelude::*;
 use macroquad::time::draw_fps;
 
 mod sprite;
+mod collectable;
+
 use sprite::*;
-use timer::Timer;
+use collectable::*;
+
 
 pub fn window_config() -> Conf {
      Conf {
@@ -18,18 +21,45 @@ pub fn window_config() -> Conf {
      }
  }
 
+enum GameState {
+    Menu, 
+    Playing, 
+    EndScreen
+}
+
+struct Game {
+    game_state: GameState, 
+    player: Sprite
+}
 
 
 pub async fn run() {
-    let mut sprite = Sprite::new(String::from("character"), Vec2::new(20.0, 30.0), Vec2::new(150.0, 150.0)).await;
+    let mut game_info = Game {
+        game_state: GameState::Playing,
+        player: Sprite::new("character".to_owned(), Vec2::new(screen_width() / 2.0, screen_height() / 2.0), Vec2::new(150.0, 150.0)).await
+    };
 
     loop {
-        clear_background(DARKBLUE);
-        draw_fps();
+        match game_info.game_state {
+            GameState::Menu => {
 
-        sprite.update();
+            }, 
+            GameState::Playing => {
+                playing_state(&mut game_info);
+            }, 
+            GameState::EndScreen => {
+
+            },
+        }
 
         next_frame().await;
     }
 
+}
+
+fn playing_state(game_info: &mut Game) {
+    clear_background(DARKBLUE);
+    draw_fps();
+
+    game_info.player.update();
 }
