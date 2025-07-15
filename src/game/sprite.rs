@@ -36,7 +36,7 @@ impl Sprite {
                 texture 
             },
             Err(_) => {
-                println!("failed to load {asset_path}");
+                macroquad::logging::error!("failed to load {asset_path}");
                 Texture2D::empty()
             },
         }
