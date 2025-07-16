@@ -85,7 +85,7 @@ impl Sprite {
 
         let mut scalar = 0.0;
 
-        if is_key_down(KeyCode::Space) && self.boost_timer.has_elapsed(self.boost_cooldown) && self.boost_counter > 0 {
+        if (is_key_down(KeyCode::Space) || is_mouse_button_pressed(MouseButton::Left)) && self.boost_timer.has_elapsed(self.boost_cooldown) && self.boost_counter > 0 {
             scalar += self.boost_speed_increase;
             self.boost_timer.reset();
             self.boost_counter -= 1;

@@ -1,4 +1,3 @@
-use std::fmt::format;
 use std::time::Duration;
 use std::vec::Vec;
 
@@ -198,17 +197,20 @@ fn gen_random_boost(game_info: &Game) -> JumpBoost {
 }   
 
 fn spawn_boosts(game_info: &mut Game) {
-    const MAX_BOOSTS: usize = 15;
-    const MAX_BOOSTS_ADD: usize = 7;
+    let native_resolution = Vec2::new(1280.0, 720.0);
+
+    let max_boosts = (15.0 * screen_width() / native_resolution.x) as usize;
+    let max_boosts_add = (7.0 * screen_width() / native_resolution.x) as usize;
+
     const BOOST_SPAWN_COOLDOWN: Duration = Duration::new(1, 0);
 
-    if game_info.jump_boosts.len() >= MAX_BOOSTS || !game_info.jump_boost_timer.has_elapsed(BOOST_SPAWN_COOLDOWN) {
+    if game_info.jump_boosts.len() >= max_boosts || !game_info.jump_boost_timer.has_elapsed(BOOST_SPAWN_COOLDOWN) {
         return;
     }
 
     game_info.jump_boost_timer.reset();
 
-    let boosts_to_add = MAX_BOOSTS_ADD.min(MAX_BOOSTS - game_info.jump_boosts.len());
+    let boosts_to_add = max_boosts_add.min(max_boosts - game_info.jump_boosts.len());
 
     for _ in 0..boosts_to_add {
         game_info.jump_boosts.push(gen_random_boost(&game_info));
@@ -357,7 +359,7 @@ async fn menu_state(game_info: &mut Game) {
         }
 
     
-    let text = "Space to Jump\nMove mouse to direct where jump will go\nGreen guys good red guys bad\nLast as long as possible.";
+    let text = "Space/left click/tap to Jump\nMove mouse to direct where jump will go\nGreen guys good red guys bad\nLast as long as possible.";
 
     let x = screen_width() / 2.0 - measure_text("Space to Jump", None, font_size as u16, 1.0).width / 2.0;
     let y = 512.0;
