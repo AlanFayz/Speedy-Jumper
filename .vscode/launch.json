@@ -45,6 +45,27 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Release web version 'speedy_jumper'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=speedy_jumper",
+                    "--package=speedy_jumper",
+                    "--target", 
+                    "wasm32-unknown-unknown",
+                    "--release"
+                ],
+                "filter": {
+                    "name": "speedy_jumper",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in executable 'speedy_jumper'",
             "cargo": {
                 "args": [

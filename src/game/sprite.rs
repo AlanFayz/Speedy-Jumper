@@ -1,6 +1,7 @@
 
 use std::time::Duration;
 
+use macroquad::audio::*;
 use macroquad::math::*;
 use macroquad::miniquad::window::screen_size;
 use macroquad::prelude::*;
@@ -12,6 +13,7 @@ use crate::math::*;
 
 pub struct Sprite {
     pub boost_counter: i32,
+    pub view_radius: f32,
 
     position: Vec2, 
     size: Vec2,
@@ -24,7 +26,12 @@ pub struct Sprite {
     boost_timer: Timer,
     boost_cooldown: Duration,
     boost_speed_increase: f32,
+    boost_sound: Sound, 
+    
+    boing_sound: Sound
 }
+
+static SPRITE_SOUND_EFFECT_VOLUME_RATIO: f32 = 0.8;
 
 impl Sprite { 
     async fn load_sprite_texture(name: &str, part: &str) -> Texture2D {
@@ -42,9 +49,10 @@ impl Sprite {
         }
     }
 
-    pub async fn new(name: String, position: Vec2, size: Vec2) -> Self {
+    pub async fn new(name: String, position: Vec2, size: Vec2, starting_view_radius: f32) -> Self {
         Sprite {
             boost_counter: 10,
+            view_radius: starting_view_radius,
             position,
             size, 
 
@@ -56,6 +64,8 @@ impl Sprite {
             boost_timer: Timer::new(),
             boost_cooldown: Duration::from_millis(500),
             boost_speed_increase: 20.0,
+            boost_sound: load_sound("assets/jump.wav").await.unwrap(), 
+            boing_sound: load_sound("assets/boing.wav").await.unwrap()
         }
     }
 
@@ -79,6 +89,8 @@ impl Sprite {
             scalar += self.boost_speed_increase;
             self.boost_timer.reset();
             self.boost_counter -= 1;
+
+            play_sound(&self.boost_sound, PlaySoundParams { looped: false, volume: SPRITE_SOUND_EFFECT_VOLUME_RATIO });
         }   
 
         self.velocity += direction * scalar;
@@ -145,6 +157,10 @@ impl Sprite {
 
         if player_bounds.get_position().y == 0.0 {
             force += Vec2::new(0.0, 1.0);
+        }
+
+        if force.length() > 0.0 {
+            play_sound(&self.boing_sound, PlaySoundParams { looped: false, volume: SPRITE_SOUND_EFFECT_VOLUME_RATIO });
         }
 
         // probably not the most accurate but want to get the "bouncy" effect off the walls

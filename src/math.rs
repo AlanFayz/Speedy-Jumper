@@ -1,5 +1,3 @@
-use std::sync::PoisonError;
-
 use macroquad::math::*;
 
 pub fn rotate_around(direction: Vec2, position: Vec2, origin: Vec2) -> Vec2 {
@@ -24,9 +22,12 @@ impl Bounds2D {
         self.top_left += offset;
     }
     
-
     pub fn get_position(&self) -> Vec2 {
         self.top_left
+    }
+
+    pub fn get_center(&self) -> Vec2 {
+        return self.top_left + self.size / 2.0;
     }
 
     pub fn get_size(&self) -> Vec2 {
