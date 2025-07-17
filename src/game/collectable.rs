@@ -20,9 +20,9 @@ impl JumpBoost {
         }
     }
 
-    pub fn update(&mut self, gravity_force: f32) {
+    pub fn update(&mut self, gravity_force: f32, delta_time: f64) {
         self.velocity += Vec2::new(0.0, gravity_force);
-        self.bounds.translate(self.velocity);
+        self.bounds.translate(self.velocity * delta_time as f32);
     }
 
     pub fn draw(&self) {

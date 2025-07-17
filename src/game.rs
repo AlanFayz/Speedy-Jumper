@@ -19,6 +19,7 @@ use background_pass::*;
 use crate::math::pixel_space;
 use crate::math::Bounds2D;
 use crate::timer::Timer;
+use crate::client::*;
 
 pub fn window_config() -> Conf {
      Conf {
@@ -42,7 +43,8 @@ struct GameResources {
     pub background_pass: BackgroundPass,
     pub death_audio: Sound,
     pub start_audio: Sound, 
-    pub soundtrack: Sound 
+    pub soundtrack: Sound, 
+    pub string_buffer: String
 }
 
 struct Game {
@@ -54,7 +56,10 @@ struct Game {
     is_dead: bool,  
     resources: GameResources, 
     start_time: f64, 
-    time_played: f64
+    time_played: f64, 
+    client: Client,
+    show_name_already_exists: bool, 
+    show_name_timer: Timer
 }
 
 
@@ -69,11 +74,12 @@ static SPRITE_SMALL_VIEW_RADIUS: f32 = 100.0 / 720.0;
 
 pub async fn run() {
     let game_resources = create_game_resources().await;
-    let mut game_info  = create_game(game_resources, GameState::Menu).await;
+    let mut game_info  = create_game(game_resources, GameState::Menu, Client::empty()).await;
     
     set_default_camera();
 
     let mut delta_time = 0.0;
+
 
     loop {
         let timer = Timer::new();
@@ -95,16 +101,21 @@ pub async fn run() {
     }
 }
 
-async fn create_game(mut game_resources: GameResources, game_state: GameState) -> Game {
+async fn new_sprite() -> Sprite {
+    Sprite::new(
+        "character".to_owned(), 
+        Vec2::new(0.5, 0.5),
+        Vec2::new(150.0 / 1280.0, 150.0 / 720.0), 
+        SPRITE_LARGE_VIEW_RADIUS).await
+}
+
+async fn create_game(mut game_resources: GameResources, game_state: GameState, client: Client) -> Game {
     game_resources.background_pass.reset();
 
     Game {
         game_state,
 
-        player: Sprite::new("character".to_owned(), 
-            Vec2::new(0.5, 0.5),
-            Vec2::new(150.0 / 1280.0, 150.0 / 720.0), 
-            SPRITE_LARGE_VIEW_RADIUS).await,
+        player: new_sprite().await,
 
         jump_boosts: Vec::new(),
         jump_boost_timer: Timer::new(),
@@ -115,9 +126,24 @@ async fn create_game(mut game_resources: GameResources, game_state: GameState) -
         resources: game_resources,
 
         start_time: get_time(),
-        time_played: 0.0
+        time_played: 0.0, 
+        client,
+        show_name_already_exists: false,
+        show_name_timer: Timer::new()
     }
 } 
+
+async fn reset_game(game_info: &mut Game) {
+    game_info.resources.background_pass.reset();
+    game_info.player = new_sprite().await;
+    game_info.jump_boosts = Vec::new();
+    game_info.jump_boost_timer = Timer::new();
+    game_info.dead_timer = Timer::new();
+    game_info.is_dead = false;
+    game_info.start_time = get_time();
+    game_info.time_played = 0.0;
+    game_info.show_name_already_exists = false;
+}
 
 
 async fn create_game_resources() -> GameResources {
@@ -125,7 +151,8 @@ async fn create_game_resources() -> GameResources {
         background_pass: BackgroundPass::new().await,
         death_audio: load_sound("assets/fail.wav").await.unwrap(),
         start_audio: load_sound("assets/game_start.wav").await.unwrap(), 
-        soundtrack: load_sound("assets/colorful_potions.wav").await.unwrap()
+        soundtrack: load_sound("assets/colorful_potions.wav").await.unwrap(),
+        string_buffer: String::new()
     }
 }
 
@@ -139,13 +166,15 @@ fn playing_state(game_info: &mut Game, delta_time: f64) {
     draw_boost_count(game_info);
     draw_time(game_info);
 
-    update_entities(game_info);
+    update_entities(game_info, delta_time);
     resolve_collisions(game_info);
 
     draw_entities(game_info);
 
     cleanup_boosts(game_info);
     spawn_boosts(game_info);
+
+    game_info.client.register_time(get_time() - game_info.start_time);
 
     if game_info.is_dead && game_info.dead_timer.has_elapsed(Duration::from_secs(2)) {
         game_info.game_state = GameState::EndScreen;
@@ -160,6 +189,8 @@ fn playing_state(game_info: &mut Game, delta_time: f64) {
         stop_sound(&game_info.resources.soundtrack);
         play_sound(&game_info.resources.death_audio, PlaySoundParams { looped: false, volume: SOUND_EFFECT_VOLUME_RATIO });
     }
+
+    draw_leaderboard(game_info);
 }
 
 
@@ -213,16 +244,19 @@ fn spawn_boosts(game_info: &mut Game) {
 
 }
 
-fn update_entities(game_info: &mut Game) {
-    let mut upper_bound_gravity_force = 1.0 - 1.0 / (get_time() - game_info.start_time);
-    upper_bound_gravity_force *= 0.2 / 1280.0;
+fn update_entities(game_info: &mut Game, delta_time: f64) {
+    let time_elapsed = get_time() - game_info.start_time;
+    let mut upper_bound_gravity_force = clamp(1.0 - 1.0 / (time_elapsed * 0.05), 0.0, 1.0);
+
+    upper_bound_gravity_force *= 20.0 / 1280.0;
+
 
     for boost in &mut game_info.jump_boosts {
-        boost.update(RANDOM.gen_range(0.01 / 1280.0, upper_bound_gravity_force as f32));
+        boost.update(RANDOM.gen_range(5.0 / 1280.0, upper_bound_gravity_force as f32), delta_time);
     }
 
     if !game_info.is_dead {
-        game_info.player.update();
+        game_info.player.update(delta_time);
     }
 }
 
@@ -255,7 +289,7 @@ fn resolve_collisions(game_info: &mut Game) {
                 game_info.player.view_radius = SPRITE_SMALL_VIEW_RADIUS;
             }
             else {
-                game_info.player.boost_counter += 1;
+                game_info.player.boost_counter += 2;
                 game_info.player.view_radius = SPRITE_LARGE_VIEW_RADIUS;
             }
         }
@@ -265,7 +299,6 @@ fn resolve_collisions(game_info: &mut Game) {
 }
 
 async fn end_screen_state(game_info: &mut Game) {
-
     let fmt_text = format!("Stupid ahh guy bro only got {:.2}s", game_info.time_played);
     let text = &fmt_text.as_str();
     let font_size = 32.0;
@@ -292,9 +325,8 @@ async fn end_screen_state(game_info: &mut Game) {
         .size(Vec2::new(text_dimensions.width, text_dimensions.height) * 3.0)
         .ui(&mut *root_ui())
         {
-
             game_info.game_state = GameState::Playing;
-            *game_info = create_game(game_info.resources.clone(), GameState::Playing).await;
+            reset_game(game_info).await;
 
             play_sound(&game_info.resources.start_audio, PlaySoundParams { looped: false, volume: SOUND_EFFECT_VOLUME_RATIO });
             play_sound(&game_info.resources.soundtrack, PlaySoundParams { looped: true, volume: SOUNDTRACK_VOLUME_RATIO });
@@ -316,8 +348,48 @@ async fn end_screen_state(game_info: &mut Game) {
         .ui(&mut *root_ui())
         {
             game_info.game_state = GameState::Menu;
+            game_info.client.register_time(-1.0);
         }
 }
+
+fn draw_leaderboard(game_info: &mut Game) {
+    game_info.client.sync();
+
+    let title_text = "Leaderboard       ";
+    let title_dim = measure_text(title_text, None, 32, 1.0);
+
+    draw_text(title_text, screen_width() - title_dim.width, 0.0 + title_dim.height, 32.0, WHITE);
+
+    let mut curr_y = title_dim.height;
+    let mut count = 0;
+
+    let leaderboard = game_info.client.get_leaderboard();
+
+    let max_name_width = leaderboard.iter()
+        .take(10)
+        .map(|(name, _)| measure_text(name, None, 32, 1.0).width)
+        .fold(0.0, f32::max);
+
+    let padding = 10.0;
+    let score_x = screen_width() - padding;
+    let name_x = score_x - 100.0 - max_name_width; 
+
+    for (name, score) in leaderboard.iter() {
+        if count == 10 {
+            break;
+        }
+        count += 1;
+
+        let name_dim = measure_text(name, None, 32, 1.0);
+        curr_y += name_dim.height + padding;
+
+        let score_text = format!("{:.2}s", score);
+        let score_dim = measure_text(&score_text, None, 32, 1.0);
+
+        draw_text(name, name_x + (max_name_width - name_dim.width), curr_y, 32.0, WHITE);
+        draw_text(&score_text, score_x - score_dim.width, curr_y, 32.0, WHITE);
+    }
+}   
 
 async fn menu_state(game_info: &mut Game) {
     clear_background(BLACK);
@@ -346,32 +418,73 @@ async fn menu_state(game_info: &mut Game) {
         .size(Vec2::new(text_dimensions.width, text_dimensions.height) * 3.0)
         .ui(&mut *root_ui())
         {
+            let client = Client::new(game_info.resources.string_buffer.clone());
+
+            if client.is_err() {
+                game_info.show_name_already_exists = true;
+                game_info.show_name_timer = Timer::new();
+                return;
+            }
+
+
             game_info.game_state = GameState::Playing;
-            *game_info = create_game(game_info.resources.clone(), GameState::Playing).await;
+            *game_info = create_game(game_info.resources.clone(), GameState::Playing, client.unwrap()).await;
 
             play_sound(&game_info.resources.start_audio, PlaySoundParams { looped: false, volume: SOUND_EFFECT_VOLUME_RATIO });
             play_sound(&game_info.resources.soundtrack, PlaySoundParams { looped: true, volume: SOUNDTRACK_VOLUME_RATIO });
         }
 
+    let text = "   Player Name   ";
+
+    let text_dimensions = measure_text(text, None, font_size as u16, 1.0);
+    let text_width = text_dimensions.width;
+
+    let x = screen_width() / 2.0 - text_width * 3.0 / 2.0;
+    let y = 250.0;
+
+    widgets::InputText::new(hash!())
+        .position(Vec2::new(x, y))
+        .size(Vec2::new(text_dimensions.width, text_dimensions.height) * 3.0)
+        .ui(&mut *root_ui(), &mut game_info.resources.string_buffer); 
+
+
+    let text = "Name already exists";
+
+    let text_dimensions = measure_text(text, None, font_size as u16, 1.0);
+    let text_width = text_dimensions.width;
+
+    let x = screen_width() / 2.0 - text_width * 3.0 / 2.0;
+    let y = 350.0;
+
+    if game_info.show_name_already_exists {
+        draw_text(text, x, y, 32.0, WHITE);
+
+        if game_info.show_name_timer.has_elapsed(Duration::from_secs(3)) {
+            game_info.show_name_already_exists = false;
+        }
+    }
+
+
     
     let text = "Space/left click/tap to Jump\nMove mouse to direct where jump will go\nGreen guys good red guys bad\nLast as long as possible.";
 
-    let x = screen_width() / 2.0 - measure_text("Space to Jump", None, font_size as u16, 1.0).width / 2.0;
+    let x = screen_width() / 2.0 - measure_text("Space/left click/tap to Jump", None, font_size as u16, 1.0).width / 2.0;
     let y = 512.0;
 
     draw_multiline_text(text, x, y, font_size, None, WHITE);
 }
+
 
 pub fn draw_rectangle_screen(position: Vec2, size: Vec2, color: Color) {
     let position = pixel_space(position);
     let size = pixel_space(size);
 
     draw_rectangle(
-            position.x, 
-            position.y, 
-            size.x, 
-            size.y, 
-            color
+        position.x, 
+        position.y, 
+        size.x, 
+        size.y, 
+        color
     );
 }
 
@@ -380,13 +493,14 @@ pub fn draw_texture_screen(texture: &Texture2D, position: Vec2, size: Vec2, colo
     let size = pixel_space(size);
 
     draw_texture_ex(
-            texture,
-            position.x,
-            position.y,
-            color,
-            DrawTextureParams {
-                dest_size: Some(size), 
-                ..Default::default()
-            },
-        );
+        texture,
+        position.x,
+        position.y,
+        color,
+        DrawTextureParams {
+            dest_size: Some(size), 
+            ..Default::default()
+        },
+    );
 }
+

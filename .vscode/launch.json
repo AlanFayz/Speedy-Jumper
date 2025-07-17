@@ -22,6 +22,24 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+         {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'speedy_jumper'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=speedy_jumper",
+                    "--package=speedy_jumper",
+                ],
+                "filter": {
+                    "name": "speedy_jumper",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
         {
             "type": "lldb",
             "request": "launch",

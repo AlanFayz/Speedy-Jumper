@@ -36,6 +36,7 @@ impl BackgroundPass {
                                 UniformDesc::new("u_PlayerPosition", UniformType::Float2), 
                                 UniformDesc::new("u_PlayerRadius", UniformType::Float1), 
                                 UniformDesc::new("u_Random", UniformType::Float1), 
+                                UniformDesc::new("u_IncludeTimeInScale", UniformType::Float1)
                                  ],
                 
                 ..Default::default()
@@ -59,6 +60,8 @@ impl BackgroundPass {
 
         gl_use_material(&self.material);
 
+        let include_time_in_scale = !((self.time_elapsed as i64 / 30) % 2 == 0); 
+
         self.material.set_uniform("u_ScreenSize", (screen_width(), screen_height()));
         self.material.set_uniform("u_Time", (get_time() - start_time) as f32);
         self.material.set_uniform("u_BouncesLeft", player.boost_counter as f32);
@@ -66,7 +69,7 @@ impl BackgroundPass {
         self.material.set_uniform("u_PlayerPosition", player.get_bounds().get_center());
         self.material.set_uniform("u_PlayerRadius", player.view_radius);
         self.material.set_uniform("u_Random", RANDOM.gen_range(0.01, 0.03) as f32);
-
+        self.material.set_uniform("u_IncludeTimeInScale", if include_time_in_scale { 1.0 as f32 } else { 0.0 as f32 });
 
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), WHITE);
 

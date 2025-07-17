@@ -64,7 +64,7 @@ impl Sprite {
 
             boost_timer: Timer::new(),
             boost_cooldown: Duration::from_millis(500),
-            boost_speed_increase: 17.0 / 1280.0,
+            boost_speed_increase: 1.3,
             boost_sound: load_sound("assets/jump.wav").await.unwrap(), 
             boing_sound: load_sound("assets/boing.wav").await.unwrap()
         }
@@ -100,7 +100,7 @@ impl Sprite {
     }
 
     fn handle_gravity(&mut self) {
-        const GRAVITY_CONSTANT: f32 = 0.15 / 1280.0;
+        const GRAVITY_CONSTANT: f32 = 0.015;
         self.velocity += Vec2::new(0.0, GRAVITY_CONSTANT);
     }
 
@@ -121,7 +121,7 @@ impl Sprite {
 
         let center = self.position + self.size / 2.0;
 
-        let eye_center = center - Vec2::new(-0.1, 0.1) * self.size; 
+        let eye_center = center - Vec2::new(-0.3, 0.1) * self.size; 
         let eye_origin = center - Vec2::new(0.0, 0.1) * self.size;
 
         let eye_size = self.size / 2.0;
@@ -153,13 +153,13 @@ impl Sprite {
         self.velocity += force;
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, delta_time: f64) {
         self.handle_movement();
         self.handle_gravity();
         self.handle_border();
 
         self.velocity = self.velocity.clamp_length(0.0, 10.0);
-        self.position += self.velocity;
+        self.position += self.velocity * delta_time as f32;
         self.velocity = self.velocity.lerp(Vec2::new(0.0, 0.0), 0.01);
 
         self.position = self.position.clamp(

@@ -1,6 +1,7 @@
 mod game;
 mod math;
 mod timer;
+mod client;
 
 use game::*;
 

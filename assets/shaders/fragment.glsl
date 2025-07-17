@@ -10,6 +10,7 @@ uniform float u_BouncesLeft;
 uniform float u_Descent;
 uniform float u_PlayerRadius;
 uniform float u_Random;
+uniform float u_IncludeTimeInScale;
 
 uniform sampler2D Texture;
 
@@ -72,6 +73,12 @@ void main()
     for(int i = 0; i < 3; i++)
     {
         float scale = 1.2; //+ 0.2 * sin(u_Time + u_Random);
+
+        if (u_IncludeTimeInScale == 1.0) 
+        {   
+            scale += 0.2 * sin(u_Time);
+        }
+
         coord = fract(coord * scale) - 0.5;
 
         float r = sin(u_Time + length(ocoord) + float(i)) * 0.5 + 0.5; // 0 - > 1
