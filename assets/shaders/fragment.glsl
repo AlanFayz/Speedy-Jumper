@@ -53,7 +53,8 @@ vec2 ndc(vec2 coord)
 void main() 
 {
     vec2 coord = ndc(gl_FragCoord.xy); 
-    vec2 player_position = ndc(u_PlayerPosition);
+    vec2 player_position = u_PlayerPosition * 2.0 - 1.0;
+    player_position.x *= u_ScreenSize.x / u_ScreenSize.y;
     player_position.y *= -1.0;
 
     vec2 ocoord = coord;
@@ -62,7 +63,11 @@ void main()
 
     vec3 color = vec3(0.0);
     
-    float iplayer_radius = 1.0 - (ndc(vec2(u_PlayerRadius, 0.0)).x - ndc(vec2(0.0)).x);
+    float iplayer_radius = u_PlayerRadius;
+    iplayer_radius  = iplayer_radius * 2.0 - 1.0;
+    iplayer_radius *= u_ScreenSize.x / u_ScreenSize.y;
+    iplayer_radius -= ndc(vec2(0.0)).x;
+    iplayer_radius  = 1.0 - iplayer_radius;
 
     for(int i = 0; i < 3; i++)
     {

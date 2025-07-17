@@ -1,7 +1,11 @@
-use macroquad::math::*;
+use macroquad::{math::*, miniquad::window::screen_size};
 
 pub fn rotate_around(direction: Vec2, position: Vec2, origin: Vec2) -> Vec2 {
     direction.rotate(position - origin) + origin
+}
+
+pub fn pixel_space(coord: Vec2) -> Vec2 {
+    coord * Vec2::from(screen_size())
 }
 
 #[derive(Clone, Copy)]

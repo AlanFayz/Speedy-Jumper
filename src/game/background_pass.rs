@@ -68,7 +68,6 @@ impl BackgroundPass {
         self.material.set_uniform("u_Random", RANDOM.gen_range(0.01, 0.03) as f32);
 
 
-
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), WHITE);
 
         gl_use_default_material();

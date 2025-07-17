@@ -1,6 +1,7 @@
 use macroquad::math::*;
 use macroquad::prelude::*;
 
+use crate::game::draw_rectangle_screen;
 use crate::math::*;
 
 
@@ -26,22 +27,9 @@ impl JumpBoost {
 
     pub fn draw(&self) {
         if self.hurtful {
-            draw_rectangle(
-                self.bounds.get_position().x, 
-                self.bounds.get_position().y, 
-                self.bounds.get_size().x,
-                self.bounds.get_size().y,
-                RED
-            );
-        }
-        else {
-            draw_rectangle(
-                self.bounds.get_position().x, 
-                self.bounds.get_position().y, 
-                self.bounds.get_size().x,
-                self.bounds.get_size().y,
-                GREEN
-            );
+            draw_rectangle_screen(self.bounds.get_position(), self.bounds.get_size(), RED); 
+        } else {
+            draw_rectangle_screen(self.bounds.get_position(), self.bounds.get_size(), GREEN);
         }
     }
 }

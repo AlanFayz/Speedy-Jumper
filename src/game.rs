@@ -16,6 +16,7 @@ use sprite::*;
 use collectable::*;
 use background_pass::*;
 
+use crate::math::pixel_space;
 use crate::math::Bounds2D;
 use crate::timer::Timer;
 
@@ -63,9 +64,8 @@ pub static RANDOM: RandGenerator = RandGenerator::new();
 static SOUND_EFFECT_VOLUME_RATIO: f32 = 0.8;
 static SOUNDTRACK_VOLUME_RATIO: f32 = 0.1;
 
-static SPRITE_LARGE_VIEW_RADIUS: f32 = 600.0;
-static SPRITE_SMALL_VIEW_RADIUS: f32 = 200.0;
-
+static SPRITE_LARGE_VIEW_RADIUS: f32 = 600.0 / 1280.0;
+static SPRITE_SMALL_VIEW_RADIUS: f32 = 100.0 / 720.0;
 
 pub async fn run() {
     let game_resources = create_game_resources().await;
@@ -102,8 +102,8 @@ async fn create_game(mut game_resources: GameResources, game_state: GameState) -
         game_state,
 
         player: Sprite::new("character".to_owned(), 
-            Vec2::new(screen_width() / 2.0, screen_height() / 2.0), 
-            Vec2::new(150.0, 150.0), 
+            Vec2::new(0.5, 0.5),
+            Vec2::new(150.0 / 1280.0, 150.0 / 720.0), 
             SPRITE_LARGE_VIEW_RADIUS).await,
 
         jump_boosts: Vec::new(),
@@ -164,7 +164,7 @@ fn playing_state(game_info: &mut Game, delta_time: f64) {
 
 
 fn screen_bounds() -> Bounds2D {
-    Bounds2D::new(Vec2::new(0.0, 0.0), Vec2::new(screen_width(), screen_height()))
+    Bounds2D::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0))
 }
 
 fn draw_boost_count(game_info: &mut Game) {
@@ -176,19 +176,16 @@ fn draw_time(game_info: &mut Game) {
 }
 
 fn cleanup_boosts(game_info: &mut Game) {
-    let screen_bounds = Bounds2D::new(
-        Vec2::new(0.0, 0.0),
-        Vec2::new(screen_width(), screen_height()),
-    );
-
+    let screen_bounds = screen_bounds();
     let player_bounds = game_info.player.get_bounds();
+
     game_info.jump_boosts.retain(|boost| boost.bounds.intersects(screen_bounds) && !boost.bounds.intersects(player_bounds));
 }
 
 fn gen_random_boost(game_info: &Game) -> JumpBoost {
     loop {
-        let boost_position = Vec2::new(RANDOM.gen_range(0.0, screen_width()), RANDOM.gen_range(0.0, screen_height()));
-        let boost_size = Vec2::splat(RANDOM.gen_range(25.0, 50.0));
+        let boost_position = Vec2::new(RANDOM.gen_range(0.0, 1.0), RANDOM.gen_range(0.0, 1.0));
+        let boost_size = Vec2::splat(RANDOM.gen_range(25.0 / 1280.0, 50.0 / 1280.0));
         
         if !Bounds2D::new(boost_position, boost_size).intersects(game_info.player.get_bounds()) {
             break JumpBoost::new(boost_position, boost_size, RANDOM.gen_range(0.0 as f64, 1.0 as f64).round() == 1.0)
@@ -197,10 +194,8 @@ fn gen_random_boost(game_info: &Game) -> JumpBoost {
 }   
 
 fn spawn_boosts(game_info: &mut Game) {
-    let native_resolution = Vec2::new(1280.0, 720.0);
-
-    let max_boosts = (15.0 * screen_width() / native_resolution.x) as usize;
-    let max_boosts_add = (7.0 * screen_width() / native_resolution.x) as usize;
+    let max_boosts = 15;
+    let max_boosts_add = 7;
 
     const BOOST_SPAWN_COOLDOWN: Duration = Duration::new(1, 0);
 
@@ -220,10 +215,10 @@ fn spawn_boosts(game_info: &mut Game) {
 
 fn update_entities(game_info: &mut Game) {
     let mut upper_bound_gravity_force = 1.0 - 1.0 / (get_time() - game_info.start_time);
-    upper_bound_gravity_force *= 0.1;
+    upper_bound_gravity_force *= 0.2 / 1280.0;
 
     for boost in &mut game_info.jump_boosts {
-        boost.update(RANDOM.gen_range(0.01, upper_bound_gravity_force as f32));
+        boost.update(RANDOM.gen_range(0.01 / 1280.0, upper_bound_gravity_force as f32));
     }
 
     if !game_info.is_dead {
@@ -365,4 +360,33 @@ async fn menu_state(game_info: &mut Game) {
     let y = 512.0;
 
     draw_multiline_text(text, x, y, font_size, None, WHITE);
+}
+
+pub fn draw_rectangle_screen(position: Vec2, size: Vec2, color: Color) {
+    let position = pixel_space(position);
+    let size = pixel_space(size);
+
+    draw_rectangle(
+            position.x, 
+            position.y, 
+            size.x, 
+            size.y, 
+            color
+    );
+}
+
+pub fn draw_texture_screen(texture: &Texture2D, position: Vec2, size: Vec2, color: Color) {
+    let position = pixel_space(position);
+    let size = pixel_space(size);
+
+    draw_texture_ex(
+            texture,
+            position.x,
+            position.y,
+            color,
+            DrawTextureParams {
+                dest_size: Some(size), 
+                ..Default::default()
+            },
+        );
 }

@@ -8,6 +8,7 @@ use macroquad::prelude::*;
 
 use macroquad::texture::Texture2D;
 
+use crate::game::draw_texture_screen;
 use crate::timer::*;
 use crate::math::*;
 
@@ -63,7 +64,7 @@ impl Sprite {
 
             boost_timer: Timer::new(),
             boost_cooldown: Duration::from_millis(500),
-            boost_speed_increase: 20.0,
+            boost_speed_increase: 17.0 / 1280.0,
             boost_sound: load_sound("assets/jump.wav").await.unwrap(), 
             boing_sound: load_sound("assets/boing.wav").await.unwrap()
         }
@@ -76,8 +77,9 @@ impl Sprite {
     fn handle_movement(&mut self) {
         let center = self.position + self.size / 2.0;
 
-        let direction = (Vec2::from(mouse_position()) - center)
-            .normalize_or(Vec2::new(0.0, 0.0));
+        let mut direction = Vec2::from(mouse_position()) / Vec2::from(screen_size());
+        direction = direction - center;
+        direction = direction.normalize_or(Vec2::new(0.0, 0.0));
 
         if direction.length() == 0.0 {
             return;
@@ -87,6 +89,7 @@ impl Sprite {
 
         if (is_key_down(KeyCode::Space) || is_mouse_button_pressed(MouseButton::Left)) && self.boost_timer.has_elapsed(self.boost_cooldown) && self.boost_counter > 0 {
             scalar += self.boost_speed_increase;
+
             self.boost_timer.reset();
             self.boost_counter -= 1;
 
@@ -97,46 +100,28 @@ impl Sprite {
     }
 
     fn handle_gravity(&mut self) {
-        const GRAVITY_CONSTANT: f32 = 0.15;
+        const GRAVITY_CONSTANT: f32 = 0.15 / 1280.0;
         self.velocity += Vec2::new(0.0, GRAVITY_CONSTANT);
     }
 
     fn draw_eye(&self, mut eye_center: Vec2, eye_size: Vec2, eye_origin: Vec2) {
-        let mouse_to_eye = Vec2::from(mouse_position()) - eye_center;
-        let distance = mouse_to_eye.length() / Vec2::from(screen_size());
+        let mouse_to_eye = Vec2::from(mouse_position()) / Vec2::from(screen_size()) - eye_center;
+        let distance = mouse_to_eye.length();
 
         let eye_direction = mouse_to_eye.normalize_or(Vec2::new(1.0, 0.0)) * distance;
 
         eye_center = rotate_around(eye_direction, eye_center, eye_origin);
         let eye_position = eye_center - eye_size / 2.0;
 
-        draw_texture_ex(
-            &self.eye,
-            eye_position.x,
-            eye_position.y,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(eye_size), 
-                ..Default::default()
-            },
-        );
+        draw_texture_screen(&self.eye, eye_position, eye_size, WHITE);
     }
 
     pub fn draw(&self) {
-        draw_texture_ex(
-            &self.body,
-            self.position.x,
-            self.position.y,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(self.size), 
-                ..Default::default()
-            },
-        );
+        draw_texture_screen(&self.body, self.position, self.size, WHITE);
 
         let center = self.position + self.size / 2.0;
 
-        let eye_center = center - Vec2::new(-0.3, 0.1) * self.size; 
+        let eye_center = center - Vec2::new(-0.1, 0.1) * self.size; 
         let eye_origin = center - Vec2::new(0.0, 0.1) * self.size;
 
         let eye_size = self.size / 2.0;
@@ -151,7 +136,7 @@ impl Sprite {
 
         if player_bounds.get_position().x == 0.0 {
             force += Vec2::new(1.0, 0.0);
-        } else if player_bounds.get_position().x == screen_width() - self.size.x {
+        } else if player_bounds.get_position().x == 1.0 - self.size.x {
             force += Vec2::new(-1.0, 0.0);
         }
 
@@ -164,7 +149,7 @@ impl Sprite {
         }
 
         // probably not the most accurate but want to get the "bouncy" effect off the walls
-        force = force.normalize_or_zero() * self.velocity.length() * 2.0; 
+        force = force.normalize_or_zero() * self.velocity.length() * 1.2; 
         self.velocity += force;
     }
 
@@ -179,7 +164,7 @@ impl Sprite {
 
         self.position = self.position.clamp(
             Vec2::new(0.0, 0.0), 
-            Vec2::new(screen_width() - self.size.x, f32::MAX),
+            Vec2::new(1.0 - self.size.x, f32::MAX),
         );
     }
 }
