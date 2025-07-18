@@ -34,8 +34,6 @@ pub struct Client {
     leaderboard: BTreeMap<String, f32>
 }
 
-
-
 impl Client {
     pub fn empty() -> Client {
         Client {
@@ -55,6 +53,7 @@ impl Client {
         };
 
         client.register_name();
+        
         return Ok(client);
     }
  

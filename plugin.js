@@ -1,4 +1,4 @@
-const socket = io("localhost:4000");
+const socket = io("https://clearlang.org/");
 
 register_plugin = function (importObject) {    
     importObject.env._register_name = function (js_object) {

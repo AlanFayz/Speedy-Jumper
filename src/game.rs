@@ -174,7 +174,9 @@ fn playing_state(game_info: &mut Game, delta_time: f64) {
     cleanup_boosts(game_info);
     spawn_boosts(game_info);
 
-    game_info.client.register_time(get_time() - game_info.start_time);
+    if !game_info.is_dead {
+        game_info.client.register_time(get_time() - game_info.start_time);
+    }
 
     if game_info.is_dead && game_info.dead_timer.has_elapsed(Duration::from_secs(2)) {
         game_info.game_state = GameState::EndScreen;
@@ -365,6 +367,15 @@ fn draw_leaderboard(game_info: &mut Game) {
 
     let leaderboard = game_info.client.get_leaderboard();
 
+    if leaderboard.is_empty() {
+        let text = "failed to connect to server";
+        let dim = measure_text(text, None, 32, 1.0);
+
+        draw_text(text, screen_width() - dim.width - 10.0, curr_y + dim.height + 10.0, 32.0, WHITE);
+        
+        return;
+    }
+
     let max_name_width = leaderboard.iter()
         .take(10)
         .map(|(name, _)| measure_text(name, None, 32, 1.0).width)
@@ -374,10 +385,14 @@ fn draw_leaderboard(game_info: &mut Game) {
     let score_x = screen_width() - padding;
     let name_x = score_x - 100.0 - max_name_width; 
 
-    for (name, score) in leaderboard.iter() {
+    let mut vec: Vec<_> = leaderboard.iter().collect();
+    vec.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap()); 
+
+    for (name, score) in vec.iter().rev() {
         if count == 10 {
             break;
         }
+
         count += 1;
 
         let name_dim = measure_text(name, None, 32, 1.0);
