@@ -1,6 +1,7 @@
 use macroquad::time::get_time;
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct Timer {
     start: Duration,
 }

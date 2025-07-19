@@ -37,14 +37,14 @@ static SPRITE_SOUND_EFFECT_VOLUME_RATIO: f32 = 0.8;
 impl Sprite { 
     async fn load_sprite_texture(name: &str, part: &str) -> Texture2D {
         let asset_path = "assets/".to_owned() + name + "_" + part + ".png";
-        
+
         match load_texture(asset_path.as_str()).await {
             Ok(texture) => {
                 texture.set_filter(FilterMode::Nearest);
                 texture 
             },
             Err(_) => {
-                macroquad::logging::error!("failed to load {asset_path}");
+                error!("failed to load {asset_path}");
                 Texture2D::empty()
             },
         }
@@ -64,7 +64,7 @@ impl Sprite {
 
             boost_timer: Timer::new(),
             boost_cooldown: Duration::from_millis(500),
-            boost_speed_increase: 1.3,
+            boost_speed_increase: 1.0,
             boost_sound: load_sound("assets/jump.wav").await.unwrap(), 
             boing_sound: load_sound("assets/boing.wav").await.unwrap()
         }
@@ -99,9 +99,9 @@ impl Sprite {
         self.velocity += direction * scalar;
     }
 
-    fn handle_gravity(&mut self) {
-        const GRAVITY_CONSTANT: f32 = 0.015;
-        self.velocity += Vec2::new(0.0, GRAVITY_CONSTANT);
+    fn handle_gravity(&mut self, delta_time: f64) {
+        const GRAVITY_CONSTANT: f32 = 1.1;
+        self.velocity += Vec2::new(0.0, GRAVITY_CONSTANT * delta_time as f32);
     }
 
     fn draw_eye(&self, mut eye_center: Vec2, eye_size: Vec2, eye_origin: Vec2) {
@@ -145,22 +145,22 @@ impl Sprite {
         }
 
         if force.length() > 0.0 {
+            stop_sound(&self.boing_sound);
             play_sound(&self.boing_sound, PlaySoundParams { looped: false, volume: SPRITE_SOUND_EFFECT_VOLUME_RATIO });
         }
 
-        // probably not the most accurate but want to get the "bouncy" effect off the walls
-        force = force.normalize_or_zero() * self.velocity.length() * 1.2; 
-        self.velocity += force;
+        force = force.normalize_or_zero() * self.velocity.length() * 1.1; 
+        self.velocity += force; //* delta_time as f32;
     }
 
     pub fn update(&mut self, delta_time: f64) {
         self.handle_movement();
-        self.handle_gravity();
+        self.handle_gravity(delta_time);
         self.handle_border();
 
-        self.velocity = self.velocity.clamp_length(0.0, 10.0);
+        self.velocity = self.velocity.clamp_length(0.0, 40.0);
         self.position += self.velocity * delta_time as f32;
-        self.velocity = self.velocity.lerp(Vec2::new(0.0, 0.0), 0.01);
+        self.velocity = self.velocity.lerp(Vec2::new(0.0, 0.0), 0.1 * delta_time as f32);
 
         self.position = self.position.clamp(
             Vec2::new(0.0, 0.0), 

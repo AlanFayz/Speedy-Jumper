@@ -10,7 +10,7 @@ uniform float u_BouncesLeft;
 uniform float u_Descent;
 uniform float u_PlayerRadius;
 uniform float u_Random;
-uniform float u_IncludeTimeInScale;
+uniform float u_Stage;
 
 uniform sampler2D Texture;
 
@@ -51,6 +51,15 @@ vec2 ndc(vec2 coord)
     return coord;
 }
 
+vec2 rotate(vec2 v, float a) 
+{
+	float s = sin(a);
+	float c = cos(a);
+
+	mat2 m = mat2(c, s, -s, c);
+	return m * v;
+}
+
 void main() 
 {
     vec2 coord = ndc(gl_FragCoord.xy); 
@@ -59,6 +68,16 @@ void main()
     player_position.y *= -1.0;
 
     vec2 ocoord = coord;
+    
+    if(u_Stage == 2.0) 
+    {
+        coord = rotate(coord, sin(u_Time));
+    }
+
+    if(u_Stage == 3.0)
+    {
+        coord = rotate(coord, u_Time);
+    }
 
     coord.y += u_Descent;
 
@@ -72,9 +91,9 @@ void main()
 
     for(int i = 0; i < 3; i++)
     {
-        float scale = 1.2; //+ 0.2 * sin(u_Time + u_Random);
+        float scale = 1.2; 
 
-        if (u_IncludeTimeInScale == 1.0) 
+        if(u_Stage == 1.0) 
         {   
             scale += 0.2 * sin(u_Time);
         }

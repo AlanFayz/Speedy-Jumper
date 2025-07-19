@@ -2,6 +2,7 @@ use std::time::Duration;
 use std::vec::Vec;
 
 use macroquad::audio::*;
+use macroquad::miniquad::conf::Platform;
 use macroquad::prelude::*;
 use macroquad::time::draw_fps;
 use macroquad::rand::RandGenerator;
@@ -28,9 +29,11 @@ pub fn window_config() -> Conf {
         window_resizable: true,
         window_width: 1280,
         window_height: 720,
+        platform: Platform { swap_interval: Some(1), ..Default::default() },
         ..Default::default()
      }
  }
+
 
 enum GameState {
     Menu, 
@@ -61,8 +64,6 @@ struct Game {
     show_name_already_exists: bool, 
     show_name_timer: Timer
 }
-
-
 
 pub static RANDOM: RandGenerator = RandGenerator::new();
 
@@ -215,13 +216,25 @@ fn cleanup_boosts(game_info: &mut Game) {
     game_info.jump_boosts.retain(|boost| boost.bounds.intersects(screen_bounds) && !boost.bounds.intersects(player_bounds));
 }
 
+fn random_boost_acceleration(game_info: &Game) -> Vec2 {
+    let time_elapsed = get_time() - game_info.start_time;
+    let mut upper_bound = clamp(1.0 - 1.0 / (time_elapsed * 0.05), 0.2, 1.0) as f32;
+    upper_bound *= 1.0;
+
+    Vec2::new(RANDOM.gen_range(-upper_bound, upper_bound), RANDOM.gen_range(-upper_bound, upper_bound))
+}
+
 fn gen_random_boost(game_info: &Game) -> JumpBoost {
     loop {
         let boost_position = Vec2::new(RANDOM.gen_range(0.0, 1.0), RANDOM.gen_range(0.0, 1.0));
         let boost_size = Vec2::splat(RANDOM.gen_range(25.0 / 1280.0, 50.0 / 1280.0));
         
         if !Bounds2D::new(boost_position, boost_size).intersects(game_info.player.get_bounds()) {
-            break JumpBoost::new(boost_position, boost_size, RANDOM.gen_range(0.0 as f64, 1.0 as f64).round() == 1.0)
+            break JumpBoost::new(
+                    boost_position, 
+                    boost_size, 
+                    RANDOM.gen_range(0.0 as f64, 1.0 as f64).round() == 1.0, 
+                    random_boost_acceleration(game_info))
         }
     }
 }   
@@ -247,14 +260,8 @@ fn spawn_boosts(game_info: &mut Game) {
 }
 
 fn update_entities(game_info: &mut Game, delta_time: f64) {
-    let time_elapsed = get_time() - game_info.start_time;
-    let mut upper_bound_gravity_force = clamp(1.0 - 1.0 / (time_elapsed * 0.05), 0.0, 1.0);
-
-    upper_bound_gravity_force *= 20.0 / 1280.0;
-
-
     for boost in &mut game_info.jump_boosts {
-        boost.update(RANDOM.gen_range(5.0 / 1280.0, upper_bound_gravity_force as f32), delta_time);
+        boost.update(delta_time);
     }
 
     if !game_info.is_dead {
@@ -333,7 +340,6 @@ async fn end_screen_state(game_info: &mut Game) {
             play_sound(&game_info.resources.start_audio, PlaySoundParams { looped: false, volume: SOUND_EFFECT_VOLUME_RATIO });
             play_sound(&game_info.resources.soundtrack, PlaySoundParams { looped: true, volume: SOUNDTRACK_VOLUME_RATIO });
         }
-
 
     let text = "Main Menu";
     let font_size = 32.0;
@@ -433,6 +439,13 @@ async fn menu_state(game_info: &mut Game) {
         .size(Vec2::new(text_dimensions.width, text_dimensions.height) * 3.0)
         .ui(&mut *root_ui())
         {
+            if game_info.resources.string_buffer.len() == 0 {
+                game_info.show_name_already_exists = true;
+                game_info.show_name_timer = Timer::new();
+
+                return;
+            }
+
             let client = Client::new(game_info.resources.string_buffer.clone());
 
             if client.is_err() {
@@ -463,12 +476,12 @@ async fn menu_state(game_info: &mut Game) {
         .ui(&mut *root_ui(), &mut game_info.resources.string_buffer); 
 
 
-    let text = "Name already exists";
+    let text = "Name already exists or you haven't entered a name";
 
     let text_dimensions = measure_text(text, None, font_size as u16, 1.0);
     let text_width = text_dimensions.width;
 
-    let x = screen_width() / 2.0 - text_width * 3.0 / 2.0;
+    let x = screen_width() / 2.0 - text_width / 2.0;
     let y = 350.0;
 
     if game_info.show_name_already_exists {
@@ -478,7 +491,6 @@ async fn menu_state(game_info: &mut Game) {
             game_info.show_name_already_exists = false;
         }
     }
-
 
     
     let text = "Space/left click/tap to Jump\nMove mouse to direct where jump will go\nGreen guys good red guys bad\nLast as long as possible.";
